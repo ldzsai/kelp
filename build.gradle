@@ -4,9 +4,15 @@ plugins {
     id 'java'
 }
 
+// 自定义变量
+ext {
+    JAVA_VERSION = 17
+}
+
 group = 'top.kangert'
 version = '0.0.1-SNAPSHOT'
-sourceCompatibility = '17'
+sourceCompatibility = JAVA_VERSION
+targetCompatibility = JAVA_VERSION
 
 configurations {
     compileOnly {
@@ -14,8 +20,23 @@ configurations {
     }
 }
 
-repositories {
-    mavenCentral()
+// 所有项目的配置
+allprojects {
+
+    sourceCompatibility = JAVA_VERSION
+    targetCompatibility = JAVA_VERSION
+
+    repositories {
+        maven { url 'https://maven.aliyun.com/repository/public'  }
+        maven{ url 'https://maven.aliyun.com/nexus/content/groups/public/' }
+        maven { url 'https://repo.spring.io/release' }
+        mavenCentral()
+    }
+
+    // 配置字符编码
+    tasks.withType(JavaCompile) {
+        options.encoding = 'UTF-8'
+    }
 }
 
 dependencies {
