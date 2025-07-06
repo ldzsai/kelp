@@ -116,7 +116,7 @@ public class Lexer {
                 } else if (Character.isLetter(ch)) {
                     return parseIdentifier();
                 }
-                throw new RuntimeException("Invalid token at position " + position);
+                throw new KelpException("Invalid token at position " + position);
         }
     }
 
@@ -150,7 +150,7 @@ public class Lexer {
             position++;
         }
         if (position >= input.length()) {
-            throw new RuntimeException("Unterminated quoted string");
+            throw new KelpException("Unterminated quoted string");
         }
         position++; // Skip the closing quote
         String value = input.substring(startPos, position - 1);
