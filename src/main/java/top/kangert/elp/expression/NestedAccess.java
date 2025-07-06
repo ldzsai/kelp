@@ -6,7 +6,6 @@ import java.util.Map;
 public class NestedAccess extends Expression {
     private final Expression baseExpression;
     private final Expression nestedExpression;
-    private final String variableName = "NestedAccessKey";
 
     public NestedAccess(Expression baseExpression, Expression nestedExpression) {
         this.baseExpression = baseExpression;
@@ -16,17 +15,32 @@ public class NestedAccess extends Expression {
     @Override
     public Object evaluate(Environment env) throws Exception {
         Object baseValue = baseExpression.evaluate(env);
-
-        // 构造虚拟环境
-        Environment virtualEnv = env.clone();
-        virtualEnv.setVariable(variableName, baseValue);
+        Object keyValue = nestedExpression.evaluate(env);
 
         if (baseValue instanceof List) {
-            // 如果基础值是列表，则使用 ArrayAccess 评估
-            return new ArrayAccess(variableName, nestedExpression).evaluate(virtualEnv);
+            List<?> list = (List<?>) baseValue;
+            if (keyValue instanceof Integer) {
+                int index = (Integer) keyValue;
+                if (index >= 0 && index < list.size()) {
+                    return list.get(index);
+                } else {
+                    throw new KelpException("Index out of bounds: " + index);
+                }
+            } else {
+                throw new KelpException("Expected an integer index but got " + keyValue.getClass().getSimpleName());
+            }
         } else if (baseValue instanceof Map) {
-            // 如果基础值是映射，则使用 ObjectKeyAccess 评估
-            return new ObjectKeyAccess(variableName, nestedExpression).evaluate(virtualEnv);
+            Map<?, ?> map = (Map<?, ?>) baseValue;
+            if (keyValue instanceof String) {
+                String key = (String) keyValue;
+                if (map.containsKey(key)) {
+                    return map.get(key);
+                } else {
+                    throw new KelpException("Key not found: " + key);
+                }
+            } else {
+                throw new KelpException("Expected a string key but got " + keyValue.getClass().getSimpleName());
+            }
         } else {
             throw new KelpException("Base value is neither a list nor a map: " + baseValue.getClass().getSimpleName());
         }

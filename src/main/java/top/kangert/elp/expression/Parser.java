@@ -84,7 +84,7 @@ public class Parser {
             } else if (numberValue instanceof Double) {
                 return new FloatLiteral(numberValue.doubleValue());
             } else {
-                throw new RuntimeException("Unexpected number type at position " + token.getValue());
+                throw new KelpException("Unexpected number type at position " + token.getValue());
             }
         } else if (token.getType() == TokenType.IDENTIFIER) {
             consumeToken();
@@ -93,16 +93,14 @@ public class Parser {
             consumeToken(); // Consume '('
             Expression expr = parseExpression();
             if (consumeToken().getType() != TokenType.RPAREN) {
-                throw new RuntimeException("Expected ')'");
+                throw new KelpException("Expected ')'");
             }
             return expr;
-        } else if (token.getType() == TokenType.LBRACKET) {
-            return parseArrayOrMapAccess();
         } else if (token.getType() == TokenType.STRING || token.getType() == TokenType.QUOTE) {
             consumeToken();
             return new StringLiteral((String) token.getValue());
         }
-        throw new RuntimeException("Invalid token at position " + token.getValue());
+        throw new KelpException("Invalid token at position " + token.getValue());
     }
 
     /**
@@ -117,12 +115,12 @@ public class Parser {
             Token token = currentToken();
             if (token.getType() == TokenType.PERIOD) {
                 consumeToken(); // Consume '.'
-                String methodName = consumeToken().getValue().toString(); // Consume method name
+                String methodName = consumeToken().getValue().toString();
                 expr = parseMethodCall(expr, methodName);
             } else if (token.getType() == TokenType.LBRACKET) {
-                expr = parseArrayOrMapAccess();
+                expr = parseArrayOrMapAccess(expr);
             } else {
-                break; // 如果不是点或方括号，则结束解析
+                break;
             }
         }
         return expr;
@@ -148,7 +146,7 @@ public class Parser {
                 }
             }
             if (consumeToken().getType() != TokenType.RPAREN) {
-                throw new RuntimeException("Expected ')'");
+                throw new KelpException("Expected ')'");
             }
         }
 
@@ -160,54 +158,15 @@ public class Parser {
      * 
      * @return 表达式
      */
-    private Expression parseArrayOrMapAccess() {
-        Token identifierToken = previousToken();
-        if (identifierToken.getType() != TokenType.IDENTIFIER) {
-            throw new RuntimeException("Expected an identifier before '['");
-        }
-
-        String identifier = identifierToken.getValue().toString();
+    private Expression parseArrayOrMapAccess(Expression target) {
         consumeToken(); // Consume '['
+        Expression keyExpression = parseExpression();
+        consumeToken(); // Consume ']'
 
-        List<Expression> accessExpressions = new ArrayList<>();
-        while (true) {
-            Expression indexOrKeyExpr = parseExpression();
-            consumeToken(); // Consume ']'
-
-            // 创建 ArrayAccess 或 ObjectKeyAccess 表达式
-            Expression accessExpr = createAccessExpression(identifier, indexOrKeyExpr);
-
-            // 将当前访问表达式添加到列表中
-            accessExpressions.add(accessExpr);
-
-            // 检查是否有更多的嵌套访问
-            if (currentToken().getType() != TokenType.LBRACKET) {
-                break;
-            }
-
-            // 如果有更多嵌套访问，则继续消费 '['
-            consumeToken(); // Consume '['
-            // 更新标识符为当前访问表达式
-            identifier = currentToken().getValue().toString();
-        }
-
-        // 构建完整的访问表达式树
-        Expression result = accessExpressions.get(0);
-        for (int i = 1; i < accessExpressions.size(); i++) {
-            Expression currentExpression = accessExpressions.get(i);
-            result = new NestedAccess(result, currentExpression);
-        }
-
-        return result;
-    }
-
-    private Expression createAccessExpression(String identifier, Expression indexOrKeyExpr) {
-        if (indexOrKeyExpr instanceof IntegerLiteral) {
-            // 创建 ArrayAccess 表达式
-            return new ArrayAccess(identifier, indexOrKeyExpr);
+        if (keyExpression instanceof IntegerLiteral) {
+            return new ArrayAccess(target, keyExpression);
         } else {
-            // 创建 ObjectKeyAccess 表达式
-            return new ObjectKeyAccess(identifier, indexOrKeyExpr);
+            return new ObjectKeyAccess(target, keyExpression);
         }
     }
 
