@@ -44,20 +44,22 @@ public class ElpApplication {
         });
         String input = "${str.subString(test[1][keyName], 0, 3)}";
 
-        input = "${str.subString(str.subString(testStr, 7, 14).toString(), 0, 2)}";
+        // input = "${str.subString(str.subString(testStr, 7, 14).toString(), 0, 2)}";
 
         // input = "${obj[keyName]}";
 
         // input = "${(1 + 1) * 3 / 2}";
         // input = "https://www.xxx.com/${testStr}/q?=keyword=${keyName}";
         // input = "https://www.xxx.com/";
-        input = "${obj[\"a\"]}";
-        input = "${obj['a1']}";
+        // input = "${obj[\"a\"]}";
+        // input = "${obj['a1']}";
         input = "${test[1]['a1']}";
+        input = "${test[1]['a']}";
+        input = "${1+1+1*2}";
 
         ExpressionEngine engine = new ExpressionEngine(env);
         Object result = engine.execute(input);
-        System.out.println(result);
+        System.out.println(String.format("执行结果：%s，执行耗时：%s ms", result, engine.getLastExecutionTime()));
     }
 
 }
