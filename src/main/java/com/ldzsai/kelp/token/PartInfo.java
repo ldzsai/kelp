@@ -1,4 +1,4 @@
-package top.kangert.elp.expression;
+package com.ldzsai.kelp.token;
 
 public class PartInfo {
     String part;
