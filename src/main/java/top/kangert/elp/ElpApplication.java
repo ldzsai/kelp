@@ -55,7 +55,10 @@ public class ElpApplication {
         // input = "${obj['a1']}";
         input = "${test[1]['a1']}";
         input = "${test[1]['a']}";
+        input = "${str.subString(test[1]['a'], 0, 3)}";
         input = "${1+1+1*2}";
+        input = "${obj.a}";
+        input = "${str.subString(obj.a, 0, 5)}rt";
 
         ExpressionEngine engine = new ExpressionEngine(env);
         Object result = engine.execute(input);

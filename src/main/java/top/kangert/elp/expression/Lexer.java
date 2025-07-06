@@ -54,7 +54,17 @@ public class Lexer {
                 } while (token.getType() != TokenType.EOF && input.charAt(position) != '}');
 
                 // 跳过}字符
-                position++;
+                if (position < input.length() && input.charAt(position) == '}') {
+                    position++;
+                }
+            }
+
+            // 处理最后一个表达式之后的字符串
+            if (position < input.length()) {
+                String val = input.substring(position);
+                if (!val.isEmpty()) {
+                    tokens.add(new Token(TokenType.STRING, val));
+                }
             }
         }
 

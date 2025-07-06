@@ -115,8 +115,24 @@ public class Parser {
             Token token = currentToken();
             if (token.getType() == TokenType.PERIOD) {
                 consumeToken(); // Consume '.'
-                String methodName = consumeToken().getValue().toString();
-                expr = parseMethodCall(expr, methodName);
+                Token nextToken = currentToken();
+
+                if (nextToken.getType() != TokenType.IDENTIFIER) {
+                    throw new KelpException("Expected an identifier after '.'");
+                }
+
+                String identifier = nextToken.getValue().toString();
+                consumeToken(); // Consume identifier
+
+                // 检查下一个token是否是左括号
+                if (currentTokenIndex < tokens.size() && currentToken().getType() == TokenType.LPAREN) {
+                    // 处理为方法调用
+                    expr = parseMethodCall(expr, identifier);
+                } else {
+                    // 处理为属性访问
+                    Expression keyExpr = new StringLiteral(identifier);
+                    expr = new ObjectKeyAccess(expr, keyExpr);
+                }
             } else if (token.getType() == TokenType.LBRACKET) {
                 expr = parseArrayOrMapAccess(expr);
             } else {
