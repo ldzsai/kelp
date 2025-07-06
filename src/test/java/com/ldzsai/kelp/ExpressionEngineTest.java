@@ -1,15 +1,13 @@
-package top.kangert.elp;
+package com.ldzsai.kelp;
 
 import java.util.HashMap;
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.junit.jupiter.api.Test;
 
-import top.kangert.elp.expression.Environment;
-import top.kangert.elp.expression.ExpressionEngine;
+import com.ldzsai.kelp.expression.Environment;
+import com.ldzsai.kelp.ExpressionEngine;
 
-@SpringBootApplication
-public class ElpApplication {
+public class ExpressionEngineTest {
 
     class StrTest {
         public static String subString(String str, Integer start, Integer end) {
@@ -17,7 +15,8 @@ public class ElpApplication {
         }
     }
 
-    public static void main(String[] args) throws Exception {
+    @Test
+    void testExecute() {
         Environment env = new Environment();
         // 定义变量
         env.setVariable("test", new Object[] { new HashMap<>() {
@@ -61,8 +60,13 @@ public class ElpApplication {
         input = "${str.subString(obj.a, 0, 5)}rt";
 
         ExpressionEngine engine = new ExpressionEngine(env);
-        Object result = engine.execute(input);
+        Object result = null;
+        try {
+            result = engine.execute(input);
+        } catch (Exception e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
         System.out.println(String.format("执行结果：%s，执行耗时：%s ms", result, engine.getLastExecutionTime()));
     }
-
 }
