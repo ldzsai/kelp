@@ -1,13 +1,18 @@
 plugins {
-    id 'java'
+    id 'java-library'
     id 'maven-publish'
 }
 
 // 自定义变量
 ext {
-    JAVA_VERSION = 17
+    JAVA_VERSION = 11
     PACKAGE_NAME = 'com.ldzsai'
     LIB_VERSION = '0.0.1-SNAPSHOT'
+}
+
+java {
+    withJavadocJar()
+    withSourcesJar()
 }
 
 group = PACKAGE_NAME
@@ -44,17 +49,44 @@ allprojects {
 publishing {
     publications {
         mavenJava(MavenPublication) {
-            from components.java
-            artifactId = 'kelp'
-            version = version
             groupId = PACKAGE_NAME
+            artifactId = 'kelp'
+            version = LIB_VERSION
+            from components.java
+
+            pom {
+                name = 'kelp'
+                description = 'High performance EL expression parser'
+                url = 'https://github.com/ldzsai/kelp'
+                licenses {
+                    license {
+                        name = 'MIT License'
+                        url = 'https://github.com/ldzsai/kelp?tab=MIT-1-ov-file'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'ldzsai'
+                        name = 'ldzsai'
+                        email = 'contact@ldzsai.com'
+                    }
+                }
+            }
+        }
+    }
+
+    repositories {
+        maven {
+            url = uri("$buildDir/repository")
         }
     }
 }
 
 dependencies {
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.7.0'
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.7.0'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0'
+    testImplementation 'org.junit.jupiter:junit-jupiter-params:5.10.0'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0'
+    testImplementation 'org.junit.platform:junit-platform-launcher:1.10.0'
 }
 
 tasks.named('test') {
