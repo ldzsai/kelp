@@ -32,7 +32,7 @@ kelp是一个轻量级、高性能的Java表达式解析和执行引擎，支持
 | [ExpressionEngine](./src/main/java/com/ldzsai/kelp/ExpressionEngine.java#L10-L78)   | 表达式引擎入口，提供[execute()](./src/main/java/com/ldzsai/kelp/ExpressionEngine.java#L37-L59)方法执行表达式                           |
 | [Lexer](./src/main/java/com/ldzsai/kelp/Lexer.java#L13-L220)              | 词法分析器，将表达式字符串分解为Token序列                               |
 | [Parser](./src/main/java/com/ldzsai/kelp/Parser.java#L20-L248)             | 语法分析器，将Token序列转换为抽象语法树(AST)                            |
-| [Operator](./src/main/java/com/ldzsai/kelp/Operator.java#L4-L30)           | 运算符枚举，支持`+`, `-`, [*](./README.md), [/](./README.md)四种基本运算    
+| [Operator](./src/main/java/com/ldzsai/kelp/Operator.java#L4-L30)           | 运算符枚举，支持`+`, `-`, `*`, `/`四种基本运算    
 
 ### 使用示例
 
