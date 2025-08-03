@@ -16,7 +16,7 @@ public class Lexer {
     private int position;
 
     public Lexer(String input) {
-        this.input = input;
+        this.input = input != null ? input : "";
         this.position = 0;
     }
 
@@ -25,56 +25,63 @@ public class Lexer {
      * 
      * @return 分词列表
      */
-    public List<Token> tokenizer() {
-        List<Token> tokens = new ArrayList<>();
+    public List<Token> tokenizer() throws KelpException {
+        try {
+            List<Token> tokens = new ArrayList<>();
 
-        // 抽取表达式片段，除此之外的内容都按照字符串处理,抽取部分按照解析逻辑进行，保持先后顺序
-        List<Integer> chuckPos = extractExpChuckPos(input);
+            // 抽取表达式片段，除此之外的内容都按照字符串处理,抽取部分按照解析逻辑进行，保持先后顺序
+            List<Integer> chuckPos = extractExpChuckPos(input);
 
-        // 若无切片说明内部无合法表达式，按照字符串原样返回
-        if (chuckPos.size() == 0) {
-            tokens.add(new Token(TokenType.STRING, input));
-        } else {
-            // 切片分段处理
-            for (int start : chuckPos) {
-                // 当前位置i作为起始位置
-                int startPos = position;
-                // 第一个切片的开始位置作为第一段字符串的结束位置
-                int endPos = start;
+            // 若无切片说明内部无合法表达式，按照字符串原样返回
+            if (chuckPos.size() == 0) {
+                tokens.add(new Token(TokenType.STRING, input));
+            } else {
+                // 切片分段处理
+                for (int start : chuckPos) {
+                    // 当前位置i作为起始位置
+                    int startPos = position;
+                    // 第一个切片的开始位置作为第一段字符串的结束位置
+                    int endPos = start;
 
-                // 添加字符串
-                String val = input.substring(startPos, endPos);
-                if (!"".equals(val) && val != null) {
-                    tokens.add(new Token(TokenType.STRING, val));
+                    // 添加字符串
+                    String val = input.substring(startPos, endPos);
+                    if (!"".equals(val) && val != null) {
+                        tokens.add(new Token(TokenType.STRING, val));
+                    }
+
+                    // 添加表达式，跳过${
+                    position = start + 2;
+                    Token token;
+                    do {
+                        token = nextToken();
+                        tokens.add(token);
+                    } while (token.getType() != TokenType.EOF && position < input.length() && input.charAt(position) != '}');
+
+                    // 跳过}字符
+                    if (position < input.length() && input.charAt(position) == '}') {
+                        position++;
+                    }
                 }
 
-                // 添加表达式，跳过${
-                position = start + 2;
-                Token token;
-                do {
-                    token = nextToken();
-                    tokens.add(token);
-                } while (token.getType() != TokenType.EOF && input.charAt(position) != '}');
-
-                // 跳过}字符
-                if (position < input.length() && input.charAt(position) == '}') {
-                    position++;
+                // 处理最后一个表达式之后的字符串
+                if (position < input.length()) {
+                    String val = input.substring(position);
+                    if (!val.isEmpty()) {
+                        tokens.add(new Token(TokenType.STRING, val));
+                    }
                 }
             }
 
-            // 处理最后一个表达式之后的字符串
-            if (position < input.length()) {
-                String val = input.substring(position);
-                if (!val.isEmpty()) {
-                    tokens.add(new Token(TokenType.STRING, val));
-                }
+            // 添加结束标记
+            tokens.add(new Token(TokenType.EOF, null));
+
+            return tokens;
+        } catch (Exception e) {
+            if (e instanceof KelpException) {
+                throw e;
             }
+            throw new KelpException("Error tokenizing input: " + e.getMessage(), e);
         }
-
-        // 添加结束标记
-        tokens.add(new Token(TokenType.EOF, null));
-
-        return tokens;
     }
 
     /**
@@ -82,7 +89,7 @@ public class Lexer {
      * 
      * @return 分词
      */
-    private Token nextToken() {
+    private Token nextToken() throws KelpException {
         skipWhitespace();
         if (position >= input.length()) {
             return new Token(TokenType.EOF, null);
@@ -126,10 +133,10 @@ public class Lexer {
             default:
                 if (Character.isDigit(ch)) {
                     return parseNumber();
-                } else if (Character.isLetter(ch)) {
+                } else if (Character.isLetter(ch) || ch == '_') {
                     return parseIdentifier();
                 }
-                throw new KelpException("Invalid token at position " + position);
+                throw new KelpException("Invalid character at position " + position + ": " + ch);
         }
     }
 
@@ -138,17 +145,28 @@ public class Lexer {
      * 
      * @return 数字
      */
-    private Token parseNumber() {
+    private Token parseNumber() throws KelpException {
         int startPos = position;
+        boolean hasDot = false;
         while (position < input.length()
                 && (Character.isDigit(input.charAt(position)) || input.charAt(position) == '.')) {
+            if (input.charAt(position) == '.') {
+                if (hasDot) {
+                    throw new KelpException("Invalid number format at position " + position);
+                }
+                hasDot = true;
+            }
             position++;
         }
         String numberStr = input.substring(startPos, position);
-        if (numberStr.contains(".")) {
-            return new Token(TokenType.FLOAT, Double.parseDouble(numberStr));
+        try {
+            if (hasDot) {
+                return new Token(TokenType.FLOAT, Double.parseDouble(numberStr));
+            }
+            return new Token(TokenType.INTEGER, Integer.parseInt(numberStr));
+        } catch (NumberFormatException e) {
+            throw new KelpException("Invalid number format: " + numberStr);
         }
-        return new Token(TokenType.INTEGER, Integer.parseInt(numberStr));
     }
 
     /**
@@ -156,21 +174,31 @@ public class Lexer {
      * 
      * @return 双\单引号字符串
      */
-    private Token parseQuotedString() {
+    private Token parseQuotedString() throws KelpException {
+        char quoteChar = input.charAt(position);
         int startPos = position;
         position++; // Skip the opening quote
-        while (position < input.length() && input.charAt(position) != '"' && input.charAt(position) != '\'') {
-            position++;
+        while (position < input.length() && input.charAt(position) != quoteChar) {
+            // 处理转义字符
+            if (input.charAt(position) == '\\' && position + 1 < input.length()) {
+                position += 2; // Skip escape character and escaped character
+            } else {
+                position++;
+            }
         }
         if (position >= input.length()) {
-            throw new KelpException("Unterminated quoted string");
+            throw new KelpException("Unterminated quoted string starting at position " + startPos);
         }
         position++; // Skip the closing quote
-        String value = input.substring(startPos, position - 1);
+        String value = input.substring(startPos + 1, position - 1);
 
-        // 去除引号字符串
-        value = value.replaceAll("\"", "");
-        value = value.replaceAll("'", "");
+        // 处理转义字符
+        value = value.replace("\\\"", "\"");
+        value = value.replace("\\'", "'");
+        value = value.replace("\\n", "\n");
+        value = value.replace("\\r", "\r");
+        value = value.replace("\\t", "\t");
+        
         return new Token(TokenType.QUOTE, value);
     }
 
@@ -202,9 +230,6 @@ public class Lexer {
 
         while (matcher.find()) {
             int start = matcher.start();
-            int end = matcher.end();
-            // group(1) 获取括号内的内容
-            String matcherStr = matcher.group(1);
             exps.add(start);
         }
         return exps;

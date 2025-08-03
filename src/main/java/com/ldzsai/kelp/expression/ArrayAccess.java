@@ -16,22 +16,38 @@ public class ArrayAccess extends Expression {
     @Override
     public Object evaluate(Environment env) throws Exception {
         Object array = baseExpression.evaluate(env);
-        int idx = ((Number) indexExpression.evaluate(env)).intValue();
+        Object indexObj = indexExpression.evaluate(env);
 
+        // 检查索引是否为数字类型
+        if (!(indexObj instanceof Number)) {
+            throw new KelpException("Array index must be a number, but got: " + 
+                (indexObj != null ? indexObj.getClass().getSimpleName() : "null"));
+        }
+
+        int idx = ((Number) indexObj).intValue();
+
+        // 处理数组类型
         if (array instanceof Object[]) {
             Object[] list = (Object[]) array;
             if (idx < 0 || idx >= list.length) {
-                throw new KelpException("Index out of bounds: " + idx);
+                throw new KelpException("Array index out of bounds: " + idx + 
+                    " (array length: " + list.length + ")");
             }
             return list[idx];
-        } else if (array instanceof List) {
+        } 
+        // 处理List类型
+        else if (array instanceof List) {
             List<Object> list = (List<Object>) array;
             if (idx < 0 || idx >= list.size()) {
-                throw new KelpException("Index out of bounds: " + idx);
+                throw new KelpException("List index out of bounds: " + idx + 
+                    " (list size: " + list.size() + ")");
             }
             return list.get(idx);
-        } else {
-            throw new KelpException("Expected an array but got " + array.getClass().getSimpleName());
+        } 
+        // 不支持的类型
+        else {
+            throw new KelpException("Expected an array or list but got " + 
+                (array != null ? array.getClass().getSimpleName() : "null"));
         }
     }
 

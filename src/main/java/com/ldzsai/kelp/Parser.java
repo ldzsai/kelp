@@ -23,6 +23,9 @@ public class Parser {
     private int currentTokenIndex;
 
     public Parser(List<Token> tokens) {
+        if (tokens == null) {
+            throw new IllegalArgumentException("Tokens cannot be null");
+        }
         this.tokens = tokens;
         this.currentTokenIndex = 0;
     }
@@ -32,16 +35,23 @@ public class Parser {
      * 
      * @return 表达式列表
      */
-    public List<Expression> buildAst() {
-        List<Expression> expressions = new ArrayList<>();
-        while (tokens.get(currentTokenIndex).getType() != TokenType.EOF) {
-            Expression expression = parseExpression();
-            if (expression == null) {
-                continue;
+    public List<Expression> buildAst() throws KelpException {
+        try {
+            List<Expression> expressions = new ArrayList<>();
+            while (currentTokenIndex < tokens.size() && tokens.get(currentTokenIndex).getType() != TokenType.EOF) {
+                Expression expression = parseExpression();
+                if (expression == null) {
+                    continue;
+                }
+                expressions.add(expression);
             }
-            expressions.add(expression);
+            return expressions;
+        } catch (Exception e) {
+            if (e instanceof KelpException) {
+                throw e;
+            }
+            throw new KelpException("Error building AST: " + e.getMessage(), e);
         }
-        return expressions;
     }
 
     /**
@@ -49,10 +59,14 @@ public class Parser {
      * 
      * @return 表达式
      */
-    private Expression parseExpression() {
+    private Expression parseExpression() throws KelpException {
+        if (currentTokenIndex >= tokens.size()) {
+            return null;
+        }
+        
         Expression expr = parseTerm();
 
-        while (currentTokenIndex < tokens.size() && isAddSubOp(tokens.get(currentTokenIndex))) {
+        while (currentTokenIndex < tokens.size() && isAddSubOp(currentToken())) {
             Token token = consumeToken();
             Expression right = parseTerm();
             Operator op = Operator.parse(token.getValue().toString());
@@ -67,10 +81,10 @@ public class Parser {
      * 
      * @return 表达式
      */
-    private Expression parseTerm() {
+    private Expression parseTerm() throws KelpException {
         Expression expr = parseFactor();
 
-        while (currentTokenIndex < tokens.size() && isMulDivOp(tokens.get(currentTokenIndex))) {
+        while (currentTokenIndex < tokens.size() && isMulDivOp(currentToken())) {
             Token token = consumeToken();
             Expression right = parseFactor();
             Operator op = Operator.parse(token.getValue().toString());
@@ -85,7 +99,11 @@ public class Parser {
      * 
      * @return 表达式
      */
-    private Expression parseFactor() {
+    private Expression parseFactor() throws KelpException {
+        if (currentTokenIndex >= tokens.size()) {
+            throw new KelpException("Unexpected end of expression");
+        }
+        
         Token token = currentToken();
         if (token.getType() == TokenType.NUMBER || token.getType() == TokenType.FLOAT
                 || token.getType() == TokenType.INTEGER) {
@@ -96,7 +114,7 @@ public class Parser {
             } else if (numberValue instanceof Double) {
                 return new FloatLiteral(numberValue.doubleValue());
             } else {
-                throw new KelpException("Unexpected number type at position " + token.getValue());
+                throw new KelpException("Unexpected number type at position " + currentTokenIndex);
             }
         } else if (token.getType() == TokenType.IDENTIFIER) {
             consumeToken();
@@ -104,7 +122,7 @@ public class Parser {
         } else if (token.getType() == TokenType.LPAREN) {
             consumeToken(); // Consume '('
             Expression expr = parseExpression();
-            if (consumeToken().getType() != TokenType.RPAREN) {
+            if (currentTokenIndex >= tokens.size() || consumeToken().getType() != TokenType.RPAREN) {
                 throw new KelpException("Expected ')'");
             }
             return expr;
@@ -112,7 +130,7 @@ public class Parser {
             consumeToken();
             return new StringLiteral((String) token.getValue());
         }
-        throw new KelpException("Invalid token at position " + token.getValue());
+        throw new KelpException("Invalid token at position " + currentTokenIndex + ": " + token.getType());
     }
 
     /**
@@ -121,12 +139,17 @@ public class Parser {
      * @param baseIdentifier 基础标识符
      * @return 表达式
      */
-    private Expression parseChainableExpression(String baseIdentifier) {
+    private Expression parseChainableExpression(String baseIdentifier) throws KelpException {
         Expression expr = new Variable(baseIdentifier);
         while (currentTokenIndex < tokens.size()) {
             Token token = currentToken();
             if (token.getType() == TokenType.PERIOD) {
                 consumeToken(); // Consume '.'
+                
+                if (currentTokenIndex >= tokens.size()) {
+                    throw new KelpException("Expected an identifier after '.'");
+                }
+                
                 Token nextToken = currentToken();
 
                 if (nextToken.getType() != TokenType.IDENTIFIER) {
@@ -161,18 +184,23 @@ public class Parser {
      * @param methodName 方法名
      * @return 表达式
      */
-    private Expression parseMethodCall(Expression target, String methodName) {
+    private Expression parseMethodCall(Expression target, String methodName) throws KelpException {
         List<Expression> arguments = new ArrayList<>();
 
         if (currentToken().getType() == TokenType.LPAREN) {
             consumeToken(); // Consume '('
-            if (currentToken().getType() != TokenType.RPAREN) {
+            if (currentTokenIndex < tokens.size() && currentToken().getType() != TokenType.RPAREN) {
                 arguments.add(parseExpression());
-                while (currentToken().getType() == TokenType.COMMA) {
+                while (currentTokenIndex < tokens.size() && currentToken().getType() == TokenType.COMMA) {
                     consumeToken(); // Consume ','
                     arguments.add(parseExpression());
                 }
             }
+            
+            if (currentTokenIndex >= tokens.size()) {
+                throw new KelpException("Expected ')'");
+            }
+            
             if (consumeToken().getType() != TokenType.RPAREN) {
                 throw new KelpException("Expected ')'");
             }
@@ -184,12 +212,29 @@ public class Parser {
     /**
      * 解析数组\Map访问
      * 
+     * @param target 目标表达式
      * @return 表达式
      */
-    private Expression parseArrayOrMapAccess(Expression target) {
+    private Expression parseArrayOrMapAccess(Expression target) throws KelpException {
+        if (currentTokenIndex >= tokens.size()) {
+            throw new KelpException("Unexpected end of expression when parsing array access");
+        }
+        
         consumeToken(); // Consume '['
+        
+        if (currentTokenIndex >= tokens.size()) {
+            throw new KelpException("Unexpected end of expression when parsing array access");
+        }
+        
         Expression keyExpression = parseExpression();
-        consumeToken(); // Consume ']'
+        
+        if (currentTokenIndex >= tokens.size()) {
+            throw new KelpException("Expected ']' but reached end of expression");
+        }
+        
+        if (consumeToken().getType() != TokenType.RBRACKET) { // Consume ']'
+            throw new KelpException("Expected ']'");
+        }
 
         if (keyExpression instanceof IntegerLiteral) {
             return new ArrayAccess(target, keyExpression);
@@ -223,7 +268,10 @@ public class Parser {
      * 
      * @return Token
      */
-    private Token consumeToken() {
+    private Token consumeToken() throws KelpException {
+        if (currentTokenIndex >= tokens.size()) {
+            throw new KelpException("Unexpected end of tokens");
+        }
         Token token = currentToken();
         currentTokenIndex++;
         return token;
@@ -235,15 +283,9 @@ public class Parser {
      * @return 当前正在处理的token
      */
     private Token currentToken() {
+        if (currentTokenIndex >= tokens.size()) {
+            return new Token(TokenType.EOF, null);
+        }
         return tokens.get(currentTokenIndex);
-    }
-
-    /**
-     * 获取解析器当前正在处理的标记(token)的前一个标记
-     * 
-     * @return 前一个token
-     */
-    private Token previousToken() {
-        return tokens.get(currentTokenIndex - 1);
     }
 }
