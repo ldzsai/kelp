@@ -6,7 +6,7 @@
 	"image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
 	"features": {
 		"ghcr.io/devcontainers/features/java:1": {
-			"version": "latest",
+			"version": "11",
 			"installMaven": "false",
 			"installGradle": "false"
 		}
