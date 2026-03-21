@@ -11,12 +11,15 @@ import com.ldzsai.kelp.expression.FunctionCall;
 import com.ldzsai.kelp.expression.IntegerLiteral;
 import com.ldzsai.kelp.expression.ObjectKeyAccess;
 import com.ldzsai.kelp.expression.StringLiteral;
+import com.ldzsai.kelp.expression.TernaryOperation;
+import com.ldzsai.kelp.expression.UnaryOperation;
 import com.ldzsai.kelp.expression.Variable;
 import com.ldzsai.kelp.token.Token;
 import com.ldzsai.kelp.token.TokenType;
 
 /**
  * 表达式解析器
+ * 支持运算符优先级：幂运算 > 乘除模 > 加减 > 位移 > 比较 > 等价 > 位运算 > 逻辑与 > 逻辑或 > 三元
  */
 public class Parser {
     private final List<Token> tokens;
@@ -55,56 +58,251 @@ public class Parser {
     }
 
     /**
-     * 解析表达式
-     * 
-     * @return 表达式
+     * 解析表达式 - 最低优先级
+     * 处理三元运算符
      */
     private Expression parseExpression() throws KelpException {
         if (currentTokenIndex >= tokens.size()) {
             return null;
         }
-        
-        Expression expr = parseTerm();
+
+        Expression expr = parseOr();
+
+        // 检查三元运算符
+        if (currentTokenIndex < tokens.size() && currentToken().getType() == TokenType.QUESTION) {
+            consumeToken(); // consume '?'
+            Expression trueValue = parseExpression();
+
+            if (currentTokenIndex >= tokens.size()) {
+                throw new KelpException("Expected ':' in ternary expression");
+            }
+
+            if (consumeToken().getType() != TokenType.COLON) {
+                throw new KelpException("Expected ':' in ternary expression");
+            }
+
+            Expression falseValue = parseExpression();
+            expr = new TernaryOperation(expr, trueValue, falseValue);
+        }
+
+        return expr;
+    }
+
+    /**
+     * 解析逻辑或 (||)
+     */
+    private Expression parseOr() throws KelpException {
+        Expression left = parseAnd();
+
+        while (currentTokenIndex < tokens.size() && currentToken().getType() == TokenType.LOGICAL_OR) {
+            Token token = consumeToken();
+            Expression right = parseAnd();
+            Operator op = Operator.parse(token.getValue().toString());
+            left = new BinaryOperation(left, op, right);
+        }
+
+        return left;
+    }
+
+    /**
+     * 解析逻辑与 (&&)
+     */
+    private Expression parseAnd() throws KelpException {
+        Expression left = parseBitOr();
+
+        while (currentTokenIndex < tokens.size() && currentToken().getType() == TokenType.LOGICAL_AND) {
+            Token token = consumeToken();
+            Expression right = parseBitOr();
+            Operator op = Operator.parse(token.getValue().toString());
+            left = new BinaryOperation(left, op, right);
+        }
+
+        return left;
+    }
+
+    /**
+     * 解析位或 (|)
+     */
+    private Expression parseBitOr() throws KelpException {
+        Expression left = parseBitXor();
+
+        while (currentTokenIndex < tokens.size() && currentToken().getType() == TokenType.BIT_OR) {
+            Token token = consumeToken();
+            Expression right = parseBitXor();
+            Operator op = Operator.parse(token.getValue().toString());
+            left = new BinaryOperation(left, op, right);
+        }
+
+        return left;
+    }
+
+    /**
+     * 解析位异或 (^)
+     */
+    private Expression parseBitXor() throws KelpException {
+        Expression left = parseBitAnd();
+
+        while (currentTokenIndex < tokens.size() && currentToken().getType() == TokenType.BIT_XOR) {
+            Token token = consumeToken();
+            Expression right = parseBitAnd();
+            Operator op = Operator.parse(token.getValue().toString());
+            left = new BinaryOperation(left, op, right);
+        }
+
+        return left;
+    }
+
+    /**
+     * 解析位与 (&)
+     */
+    private Expression parseBitAnd() throws KelpException {
+        Expression left = parseEquality();
+
+        while (currentTokenIndex < tokens.size() && currentToken().getType() == TokenType.BIT_AND) {
+            Token token = consumeToken();
+            Expression right = parseEquality();
+            Operator op = Operator.parse(token.getValue().toString());
+            left = new BinaryOperation(left, op, right);
+        }
+
+        return left;
+    }
+
+    /**
+     * 解析等价比较 (==, !=)
+     */
+    private Expression parseEquality() throws KelpException {
+        Expression left = parseComparison();
+
+        while (currentTokenIndex < tokens.size() && isEqualityOp(currentToken())) {
+            Token token = consumeToken();
+            Expression right = parseComparison();
+            Operator op = Operator.parse(token.getValue().toString());
+            left = new BinaryOperation(left, op, right);
+        }
+
+        return left;
+    }
+
+    /**
+     * 解析比较运算 (>, <, >=, <=)
+     */
+    private Expression parseComparison() throws KelpException {
+        Expression left = parseShift();
+
+        while (currentTokenIndex < tokens.size() && isComparisonOp(currentToken())) {
+            Token token = consumeToken();
+            Expression right = parseShift();
+            Operator op = Operator.parse(token.getValue().toString());
+            left = new BinaryOperation(left, op, right);
+        }
+
+        return left;
+    }
+
+    /**
+     * 解析位移运算 (<<, >>, >>>)
+     */
+    private Expression parseShift() throws KelpException {
+        Expression left = parseAdditive();
+
+        while (currentTokenIndex < tokens.size() && isShiftOp(currentToken())) {
+            Token token = consumeToken();
+            Expression right = parseAdditive();
+            Operator op = Operator.parse(token.getValue().toString());
+            left = new BinaryOperation(left, op, right);
+        }
+
+        return left;
+    }
+
+    /**
+     * 解析加法运算 (+, -)
+     */
+    private Expression parseAdditive() throws KelpException {
+        Expression left = parseMultiplicative();
 
         while (currentTokenIndex < tokens.size() && isAddSubOp(currentToken())) {
             Token token = consumeToken();
-            Expression right = parseTerm();
+            Expression right = parseMultiplicative();
             Operator op = Operator.parse(token.getValue().toString());
-            expr = new BinaryOperation(expr, op, right);
+            left = new BinaryOperation(left, op, right);
         }
 
-        return expr;
+        return left;
     }
 
     /**
-     * 解析加减法表达式
-     * 
-     * @return 表达式
+     * 解析乘法运算 (*, /, %, //)
      */
-    private Expression parseTerm() throws KelpException {
-        Expression expr = parseFactor();
+    private Expression parseMultiplicative() throws KelpException {
+        Expression left = parsePower();
 
         while (currentTokenIndex < tokens.size() && isMulDivOp(currentToken())) {
             Token token = consumeToken();
-            Expression right = parseFactor();
+            Expression right = parsePower();
             Operator op = Operator.parse(token.getValue().toString());
-            expr = new BinaryOperation(expr, op, right);
+            left = new BinaryOperation(left, op, right);
         }
 
-        return expr;
+        return left;
     }
 
     /**
-     * 解析原子\单因子表达式
-     * 
-     * @return 表达式
+     * 解析幂运算 (**) - 右结合
      */
-    private Expression parseFactor() throws KelpException {
+    private Expression parsePower() throws KelpException {
+        Expression left = parseUnary();
+
+        if (currentTokenIndex < tokens.size() && currentToken().getType() == TokenType.POWER) {
+            Token token = consumeToken();
+            Expression right = parsePower(); // 右结合，递归调用
+            Operator op = Operator.parse(token.getValue().toString());
+            left = new BinaryOperation(left, op, right);
+        }
+
+        return left;
+    }
+
+    /**
+     * 解析一元运算符 (-, !, ~)
+     */
+    private Expression parseUnary() throws KelpException {
+        if (currentTokenIndex < tokens.size()) {
+            Token token = currentToken();
+
+            if (token.getType() == TokenType.MINUS) {
+                consumeToken();
+                Expression operand = parseUnary(); // 支持链式一元运算符
+                return new UnaryOperation("-", operand);
+            }
+
+            if (token.getType() == TokenType.LOGICAL_NOT) {
+                consumeToken();
+                Expression operand = parseUnary();
+                return new UnaryOperation("!", operand);
+            }
+
+            if (token.getType() == TokenType.BIT_NOT) {
+                consumeToken();
+                Expression operand = parseUnary();
+                return new UnaryOperation("~", operand);
+            }
+        }
+
+        return parsePrimary();
+    }
+
+    /**
+     * 解析基本表达式（数字、字符串、标识符、括号表达式）
+     */
+    private Expression parsePrimary() throws KelpException {
         if (currentTokenIndex >= tokens.size()) {
             throw new KelpException("Unexpected end of expression");
         }
-        
+
         Token token = currentToken();
+
         if (token.getType() == TokenType.NUMBER || token.getType() == TokenType.FLOAT
                 || token.getType() == TokenType.INTEGER) {
             consumeToken();
@@ -130,6 +328,7 @@ public class Parser {
             consumeToken();
             return new StringLiteral((String) token.getValue());
         }
+
         throw new KelpException("Invalid token at position " + currentTokenIndex + ": " + token.getType());
     }
 
@@ -145,11 +344,11 @@ public class Parser {
             Token token = currentToken();
             if (token.getType() == TokenType.PERIOD) {
                 consumeToken(); // Consume '.'
-                
+
                 if (currentTokenIndex >= tokens.size()) {
                     throw new KelpException("Expected an identifier after '.'");
                 }
-                
+
                 Token nextToken = currentToken();
 
                 if (nextToken.getType() != TokenType.IDENTIFIER) {
@@ -196,11 +395,11 @@ public class Parser {
                     arguments.add(parseExpression());
                 }
             }
-            
+
             if (currentTokenIndex >= tokens.size()) {
                 throw new KelpException("Expected ')'");
             }
-            
+
             if (consumeToken().getType() != TokenType.RPAREN) {
                 throw new KelpException("Expected ')'");
             }
@@ -219,19 +418,19 @@ public class Parser {
         if (currentTokenIndex >= tokens.size()) {
             throw new KelpException("Unexpected end of expression when parsing array access");
         }
-        
+
         consumeToken(); // Consume '['
-        
+
         if (currentTokenIndex >= tokens.size()) {
             throw new KelpException("Unexpected end of expression when parsing array access");
         }
-        
+
         Expression keyExpression = parseExpression();
-        
+
         if (currentTokenIndex >= tokens.size()) {
             throw new KelpException("Expected ']' but reached end of expression");
         }
-        
+
         if (consumeToken().getType() != TokenType.RBRACKET) { // Consume ']'
             throw new KelpException("Expected ']'");
         }
@@ -243,24 +442,32 @@ public class Parser {
         }
     }
 
-    /**
-     * 判断是否是加减法运算符
-     * 
-     * @param token Token
-     * @return 是否是加减法运算符
-     */
+    // 判断运算符的方法
+    private boolean isEqualityOp(Token token) {
+        TokenType type = token.getType();
+        return type == TokenType.EQUALS || type == TokenType.NOT_EQUALS;
+    }
+
+    private boolean isComparisonOp(Token token) {
+        TokenType type = token.getType();
+        return type == TokenType.GREATER_THAN || type == TokenType.LESS_THAN
+                || type == TokenType.GREATER_OR_EQUAL || type == TokenType.LESS_OR_EQUAL;
+    }
+
+    private boolean isShiftOp(Token token) {
+        TokenType type = token.getType();
+        return type == TokenType.LEFT_SHIFT || type == TokenType.RIGHT_SHIFT
+                || type == TokenType.UNSIGNED_RIGHT_SHIFT;
+    }
+
     private boolean isAddSubOp(Token token) {
         return token.getType() == TokenType.PLUS || token.getType() == TokenType.MINUS;
     }
 
-    /**
-     * 判断是否是乘除法运算符
-     * 
-     * @param token Token
-     * @return 是否是乘除法运算符
-     */
     private boolean isMulDivOp(Token token) {
-        return token.getType() == TokenType.MULTIPLY || token.getType() == TokenType.DIVIDE;
+        TokenType type = token.getType();
+        return type == TokenType.MULTIPLY || type == TokenType.DIVIDE
+                || type == TokenType.MODULO || type == TokenType.INTEGER_DIVIDE;
     }
 
     /**

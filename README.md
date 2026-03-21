@@ -3,15 +3,19 @@
 kelp是一个轻量级、高性能的Java表达式解析和执行引擎，支持变量访问、函数调用、数学运算等特性，适用于规则引擎、模板渲染等场景。
 
 ## 功能特性
-- 🚀 支持基本数学运算（加减乘除）
-- 🔍 变量访问和嵌套属性访问（支持链式调用）
-- 📞 方法调用（支持静态方法和实例方法及链式调用）
-- 📊 数组和集合元素访问
-- ⚡ 表达式缓存优化
-- ⏱️ 执行耗时统计
-- ✅ 强类型检查（变量、数组索引等）
-- 🛡️ 边界检查（数组越界、Map键不存在等）
-- 🔄 支持递归表达式解析
+ - 🚀 支持丰富的数学运算（加减乘除、取模、幂运算、整除）
+ - 🔬 支持比较运算（==, !=, >, <, >=, <=）
+ - 🔀 支持逻辑运算符（&&, ||, !）
+ - ⚙️ 支持位运算符（&, |, ^, ~, <<, >>, >>>）
+ - ❓ 支持三元条件运算符（condition ? trueVal : falseVal）
+ - 🔍 变量访问和嵌套属性访问（支持链式调用）
+ - 📞 方法调用（支持静态方法和实例方法及链式调用）
+ - 📊 数组和集合元素访问
+ - ⚡ 表达式缓存优化
+ - ⏱️ 执行耗时统计
+ - ✅ 强类型检查（变量、数组索引等）
+ - 🛡️ 边界检查（数组越界、Map键不存在等）
+ - 🔄 支持递归表达式解析
 
 ## 快速开始
 
@@ -32,7 +36,7 @@ kelp是一个轻量级、高性能的Java表达式解析和执行引擎，支持
 | [ExpressionEngine](./src/main/java/com/ldzsai/kelp/ExpressionEngine.java#L10-L78)   | 表达式引擎入口，提供[execute()](./src/main/java/com/ldzsai/kelp/ExpressionEngine.java#L37-L59)方法执行表达式                           |
 | [Lexer](./src/main/java/com/ldzsai/kelp/Lexer.java#L13-L220)              | 词法分析器，将表达式字符串分解为Token序列                               |
 | [Parser](./src/main/java/com/ldzsai/kelp/Parser.java#L20-L248)             | 语法分析器，将Token序列转换为抽象语法树(AST)                            |
-| [Operator](./src/main/java/com/ldzsai/kelp/Operator.java#L4-L30)           | 运算符枚举，支持`+`, `-`, `*`, `/`四种基本运算    
+| [Operator](./src/main/java/com/ldzsai/kelp/Operator.java#L4-L30)           | 运算符枚举，支持`+`, `-`, `*`, `/`, `%`, `**`, `//`等多种运算    |
 
 ### 使用示例
 
@@ -42,6 +46,84 @@ Environment env = new Environment();
 ExpressionEngine engine = new ExpressionEngine(env);
 Object result = engine.execute("${1 + 2 * 3}");
 System.out.println(result); // 输出: 7
+```
+
+#### 高级数学运算
+```java
+Environment env = new Environment();
+ExpressionEngine engine = new ExpressionEngine(env);
+
+// 幂运算
+Object result = engine.execute("${2 ** 3}");
+System.out.println(result); // 输出: 8.0
+
+// 整除
+result = engine.execute("${10 // 3}");
+System.out.println(result); // 输出: 3.0
+
+// 取模
+result = engine.execute("${10 % 3}");
+System.out.println(result); // 输出: 1.0
+```
+
+#### 比较运算
+```java
+Environment env = new Environment();
+env.setVariable("a", 10);
+env.setVariable("b", 20);
+ExpressionEngine engine = new ExpressionEngine(env);
+
+System.out.println(engine.execute("${a < b}"));   // 输出: true
+System.out.println(engine.execute("${a > b}"));   // 输出: false
+System.out.println(engine.execute("${a == b}"));  // 输出: false
+System.out.println(engine.execute("${a != b}"));  // 输出: true
+```
+
+#### 逻辑运算符
+```java
+Environment env = new Environment();
+env.setVariable("a", 1);
+env.setVariable("b", 0);
+ExpressionEngine engine = new ExpressionEngine(env);
+
+System.out.println(engine.execute("${a && a}"));  // 输出: true
+System.out.println(engine.execute("${a && b}"));  // 输出: false
+System.out.println(engine.execute("${a || b}"));  // 输出: true
+System.out.println(engine.execute("${!b}"));      // 输出: true
+```
+
+#### 位运算符
+```java
+Environment env = new Environment();
+env.setVariable("a", 5);  // 0101
+env.setVariable("b", 3);  // 0011
+ExpressionEngine engine = new ExpressionEngine(env);
+
+System.out.println(engine.execute("${a & b}"));  // 输出: 1 (0001)
+System.out.println(engine.execute("${a | b}"));  // 输出: 7 (0111)
+System.out.println(engine.execute("${a ^ b}"));  // 输出: 6 (0110)
+System.out.println(engine.execute("${a << b}")); // 输出: 40 (101000)
+```
+
+#### 三元运算符
+```java
+Environment env = new Environment();
+env.setVariable("a", 10);
+env.setVariable("b", 20);
+ExpressionEngine engine = new ExpressionEngine(env);
+
+System.out.println(engine.execute("${a < b ? 'yes' : 'no'}")); // 输出: yes
+System.out.println(engine.execute("${a > b ? 'yes' : 'no'}")); // 输出: no
+```
+
+#### 负数支持
+```java
+Environment env = new Environment();
+env.setVariable("a", 10);
+ExpressionEngine engine = new ExpressionEngine(env);
+
+System.out.println(engine.execute("${-a}"));    // 输出: -10.0
+System.out.println(engine.execute("${--a}"));   // 输出: 10.0
 ```
 
 #### 变量访问和方法调用
@@ -124,19 +206,57 @@ System.out.println(result); // 输出: 205
 // 方法调用与集合访问混合
 result = engine.execute("${users.size() * 2}");
 System.out.println(result); // 输出: 4 (假设users有2个元素)
+
+// 复杂表达式
+result = engine.execute("${2 ** 3 + 10 / 2 - 5}");  // 8 + 5 - 5 = 8
+System.out.println(result); // 输出: 8.0
 ```
 
 ## 表达式语法规范
 kelp支持以下表达式语法：
 ```text
-${expression}        // 基本表达式格式
-${a + b * c}         // 数学运算
-${obj.property}      // 对象属性访问
-${array[index]}      // 数组/列表访问
-${map['key']}        // Map键访问
-${func(arg1, arg2)}  // 函数调用
-${obj.func().prop}   // 链式调用
+${expression}                 // 基本表达式格式
+${a + b * c}                 // 数学运算
+${a ** b}                    // 幂运算
+${a // b}                    // 整除
+${a % b}                     // 取模
+${a > b}                     // 比较运算
+${a == b}                    // 相等比较
+${a && b}                    // 逻辑与
+${a || b}                    // 逻辑或
+${!a}                        // 逻辑非
+${a & b}                     // 位与
+${a | b}                     // 位或
+${a ^ b}                     // 位异或
+${a << b}                    // 左移
+${a >> b}                    // 右移
+${a >>> b}                   // 无符号右移
+${condition ? a : b}         // 三元运算符
+${-a}                        // 负数（一元运算符）
+${obj.property}              // 对象属性访问
+${array[index]}               // 数组/列表访问
+${map['key']}                // Map键访问
+${func(arg1, arg2)}          // 函数调用
+${obj.func().prop}           // 链式调用
 ```
+
+## 运算符优先级
+kelp表达式引擎支持完整的运算符优先级（从高到低）：
+
+| 优先级 | 运算符 | 说明 |
+|--------|--------|------|
+| 1 | `**` | 幂运算（右结合）|
+| 2 | `*`, `/`, `%`, `//` | 乘除模整除 |
+| 3 | `+`, `-` | 加减 |
+| 4 | `<<`, `>>`, `>>>` | 位移 |
+| 5 | `>`, `<`, `>=`, `<=` | 比较 |
+| 6 | `==`, `!=` | 相等 |
+| 7 | `&` | 位与 |
+| 8 | `^` | 位异或 |
+| 9 | `|` | 位或 |
+| 10 | `&&` | 逻辑与 |
+| 11 | `||` | 逻辑或 |
+| 12 | `? :` | 三元运算符 |
 
 ## 高级用法
 
@@ -186,7 +306,7 @@ try {
 | 嵌套对象访问(3层)    | 2.5          | 0.5            |
 | 集合访问(10元素)     | 1.8          | 0.4            |
 
-> 测试环境：JDK 17, Intel i7-11800H, 32GB RAM
+> 测试环境：JDK 11+, Intel i7-11800H, 32GB RAM
 
 ## 最佳实践
 1. 对于模板渲染场景，建议预编译常用表达式

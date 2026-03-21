@@ -33,7 +33,7 @@ public class Lexer {
             List<Integer> chuckPos = extractExpChuckPos(input);
 
             // 若无切片说明内部无合法表达式，按照字符串原样返回
-            if (chuckPos.size() == 0) {
+            if (chuckPos.isEmpty()) {
                 tokens.add(new Token(TokenType.STRING, input));
             } else {
                 // 切片分段处理
@@ -45,7 +45,7 @@ public class Lexer {
 
                     // 添加字符串
                     String val = input.substring(startPos, endPos);
-                    if (!"".equals(val) && val != null) {
+                    if (!val.isEmpty()) {
                         tokens.add(new Token(TokenType.STRING, val));
                     }
 
@@ -55,7 +55,8 @@ public class Lexer {
                     do {
                         token = nextToken();
                         tokens.add(token);
-                    } while (token.getType() != TokenType.EOF && position < input.length() && input.charAt(position) != '}');
+                    } while (token.getType() != TokenType.EOF && position < input.length()
+                            && input.charAt(position) != '}');
 
                     // 跳过}字符
                     if (position < input.length() && input.charAt(position) == '}') {
@@ -96,6 +97,28 @@ public class Lexer {
         }
 
         char ch = input.charAt(position);
+
+        // 检查是否为多字符运算符
+        if (position + 1 < input.length()) {
+            String twoChars = input.substring(position, position + 2);
+            TokenType type = matchTwoCharOperator(twoChars);
+            if (type != null) {
+                position += 2;
+                return new Token(type, twoChars);
+            }
+        }
+
+        // 检查三字符运算符
+        if (position + 2 < input.length()) {
+            String threeChars = input.substring(position, position + 3);
+            TokenType type = matchThreeCharOperator(threeChars);
+            if (type != null) {
+                position += 3;
+                return new Token(type, threeChars);
+            }
+        }
+
+        // 单字符处理
         switch (ch) {
             case '+':
                 position++;
@@ -109,6 +132,9 @@ public class Lexer {
             case '/':
                 position++;
                 return new Token(TokenType.DIVIDE, "/");
+            case '%':
+                position++;
+                return new Token(TokenType.MODULO, "%");
             case '(':
                 position++;
                 return new Token(TokenType.LPAREN, "(");
@@ -127,6 +153,33 @@ public class Lexer {
             case ']':
                 position++;
                 return new Token(TokenType.RBRACKET, "]");
+            case '?':
+                position++;
+                return new Token(TokenType.QUESTION, "?");
+            case ':':
+                position++;
+                return new Token(TokenType.COLON, ":");
+            case '!':
+                position++;
+                return new Token(TokenType.LOGICAL_NOT, "!");
+            case '&':
+                position++;
+                return new Token(TokenType.BIT_AND, "&");
+            case '|':
+                position++;
+                return new Token(TokenType.BIT_OR, "|");
+            case '^':
+                position++;
+                return new Token(TokenType.BIT_XOR, "^");
+            case '~':
+                position++;
+                return new Token(TokenType.BIT_NOT, "~");
+            case '<':
+                position++;
+                return new Token(TokenType.LESS_THAN, "<");
+            case '>':
+                position++;
+                return new Token(TokenType.GREATER_THAN, ">");
             case '"':
             case '\'':
                 return parseQuotedString();
@@ -137,6 +190,48 @@ public class Lexer {
                     return parseIdentifier();
                 }
                 throw new KelpException("Invalid character at position " + position + ": " + ch);
+        }
+    }
+
+    /**
+     * 匹配双字符运算符
+     */
+    private TokenType matchTwoCharOperator(String str) {
+        switch (str) {
+            case "==":
+                return TokenType.EQUALS;
+            case "!=":
+                return TokenType.NOT_EQUALS;
+            case ">=":
+                return TokenType.GREATER_OR_EQUAL;
+            case "<=":
+                return TokenType.LESS_OR_EQUAL;
+            case "&&":
+                return TokenType.LOGICAL_AND;
+            case "||":
+                return TokenType.LOGICAL_OR;
+            case "<<":
+                return TokenType.LEFT_SHIFT;
+            case ">>":
+                return TokenType.RIGHT_SHIFT;
+            case "**":
+                return TokenType.POWER;
+            case "//":
+                return TokenType.INTEGER_DIVIDE;
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * 匹配三字符运算符
+     */
+    private TokenType matchThreeCharOperator(String str) {
+        switch (str) {
+            case ">>>":
+                return TokenType.UNSIGNED_RIGHT_SHIFT;
+            default:
+                return null;
         }
     }
 
@@ -198,7 +293,7 @@ public class Lexer {
         value = value.replace("\\n", "\n");
         value = value.replace("\\r", "\r");
         value = value.replace("\\t", "\t");
-        
+
         return new Token(TokenType.QUOTE, value);
     }
 
@@ -224,7 +319,7 @@ public class Lexer {
      * @return 表达式切片的起始位置
      */
     private List<Integer> extractExpChuckPos(String input) {
-        List<Integer> exps = new ArrayList<Integer>();
+        List<Integer> exps = new ArrayList<>();
         Pattern pattern = Pattern.compile("\\$\\{([^}]*)\\}");
         Matcher matcher = pattern.matcher(input);
 
