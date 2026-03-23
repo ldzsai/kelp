@@ -43,6 +43,11 @@ allprojects {
     tasks.withType(JavaCompile) {
         options.encoding = 'UTF-8'
     }
+    
+    // 配置 Javadoc 编码
+    tasks.withType(Javadoc) {
+        options.encoding = 'UTF-8'
+    }
 }
 
 // maven仓库相关

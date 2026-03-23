@@ -19,7 +19,8 @@ import com.ldzsai.kelp.token.TokenType;
 
 /**
  * 表达式解析器
- * 支持运算符优先级：幂运算 > 乘除模 > 加减 > 位移 > 比较 > 等价 > 位运算 > 逻辑与 > 逻辑或 > 三元
+ * 支持运算符优先级：幂运算 &gt; 乘除模 &gt; 加减 &gt; 位移 &gt; 比较 &gt; 等价 &gt; 位运算 &gt; 逻辑与 &gt;
+ * 逻辑或 &gt; 三元
  */
 public class Parser {
     private final List<Token> tokens;
