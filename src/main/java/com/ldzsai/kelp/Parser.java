@@ -71,7 +71,7 @@ public class Parser {
 
         // 检查三元运算符
         if (currentTokenIndex < tokens.size() && currentToken().getType() == TokenType.QUESTION) {
-            consumeToken(); // consume '?'
+            consumeToken(); // 消费 '?'
             Expression trueValue = parseExpression();
 
             if (currentTokenIndex >= tokens.size()) {
@@ -304,8 +304,7 @@ public class Parser {
 
         Token token = currentToken();
 
-        if (token.getType() == TokenType.NUMBER || token.getType() == TokenType.FLOAT
-                || token.getType() == TokenType.INTEGER) {
+        if (token.getType() == TokenType.FLOAT || token.getType() == TokenType.INTEGER) {
             consumeToken();
             Number numberValue = (Number) token.getValue();
             if (numberValue instanceof Integer) {
@@ -319,7 +318,7 @@ public class Parser {
             consumeToken();
             return parseChainableExpression(token.getValue().toString());
         } else if (token.getType() == TokenType.LPAREN) {
-            consumeToken(); // Consume '('
+            consumeToken(); // 消费 '('
             Expression expr = parseExpression();
             if (currentTokenIndex >= tokens.size() || consumeToken().getType() != TokenType.RPAREN) {
                 throw new KelpException("Expected ')'");
@@ -344,7 +343,7 @@ public class Parser {
         while (currentTokenIndex < tokens.size()) {
             Token token = currentToken();
             if (token.getType() == TokenType.PERIOD) {
-                consumeToken(); // Consume '.'
+                consumeToken(); // 消费 '.'
 
                 if (currentTokenIndex >= tokens.size()) {
                     throw new KelpException("Expected an identifier after '.'");
@@ -357,7 +356,7 @@ public class Parser {
                 }
 
                 String identifier = nextToken.getValue().toString();
-                consumeToken(); // Consume identifier
+                consumeToken(); // 消费标识符
 
                 // 检查下一个token是否是左括号
                 if (currentTokenIndex < tokens.size() && currentToken().getType() == TokenType.LPAREN) {
@@ -388,11 +387,11 @@ public class Parser {
         List<Expression> arguments = new ArrayList<>();
 
         if (currentToken().getType() == TokenType.LPAREN) {
-            consumeToken(); // Consume '('
+            consumeToken(); // 消费 '('
             if (currentTokenIndex < tokens.size() && currentToken().getType() != TokenType.RPAREN) {
                 arguments.add(parseExpression());
                 while (currentTokenIndex < tokens.size() && currentToken().getType() == TokenType.COMMA) {
-                    consumeToken(); // Consume ','
+                    consumeToken(); // 消费 ','
                     arguments.add(parseExpression());
                 }
             }
@@ -420,7 +419,7 @@ public class Parser {
             throw new KelpException("Unexpected end of expression when parsing array access");
         }
 
-        consumeToken(); // Consume '['
+        consumeToken(); // 消费 '['
 
         if (currentTokenIndex >= tokens.size()) {
             throw new KelpException("Unexpected end of expression when parsing array access");
@@ -432,7 +431,7 @@ public class Parser {
             throw new KelpException("Expected ']' but reached end of expression");
         }
 
-        if (consumeToken().getType() != TokenType.RBRACKET) { // Consume ']'
+        if (consumeToken().getType() != TokenType.RBRACKET) { // 消费 ']'
             throw new KelpException("Expected ']'");
         }
 

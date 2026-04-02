@@ -1,6 +1,55 @@
 # 更新日志
 
-本文档记录kelp表达式引擎的所有重要更新。
+本文档记录 kelp 表达式引擎的所有重要变更。
+
+---
+
+## [0.0.3] - 2026-04-02
+
+### 变更
+
+#### 架构调整
+- 移除遗留的 `ExpressionEngine` 类及其测试 `ExpressionEngineTest`
+- 统一使用 `KelpEngine` 作为唯一的引擎入口
+
+#### `KelpEngine` 特性
+- 通过 `Builder` 模式构建，支持灵活配置（缓存大小、日志、指标、中间件等）
+- 环境（Environment）在执行时传入，同一引擎实例可跨环境复用
+- 采用流水线架构（`ExpressionPipeline`），支持前置/后置中间件链
+- AST 缓存使用有界的 `LRUCache`，避免内存无限增长
+- 内置指标收集（`MetricsCollector`）和日志记录（`KelpLogger`）
+- 线程安全，支持并发调用
+
+#### 代码质量
+- 所有 Java 源文件的注释统一为中文
+- 移除 `Lexer` 中标记为 `@Deprecated` 的过时方法 `tokenizer()`
+- 移除注释中含有的"修复"等迭代过程描述词
+
+### 迁移指南
+
+从 `ExpressionEngine` 迁移到 `KelpEngine`：
+
+```java
+// 旧版用法
+Environment env = new Environment();
+ExpressionEngine engine = new ExpressionEngine(env);
+Object result = engine.execute("${1 + 2}");
+
+// 新版用法
+KelpEngine engine = KelpEngine.create();
+Environment env = new Environment();
+String result = engine.execute("${1 + 2}", env);
+```
+
+如需自定义配置：
+
+```java
+KelpEngine engine = KelpEngine.builder()
+    .maxCacheSize(500)
+    .enableMetrics(true)
+    .enableLogging(true)
+    .build();
+```
 
 ---
 
@@ -61,30 +110,9 @@
 12. `? :` (三元运算符)
 
 #### 代码优化
-- 优化了Parser语法分析器，使用递归下降解析支持正确的运算符优先级
-- 改进了BinaryOperation类，支持多种运算符类型
+- 优化了 Parser 语法分析器，使用递归下降解析支持正确的运算符优先级
+- 改进了 BinaryOperation 类，支持多种运算符类型
 - 添加了完善的类型检查和错误处理
-
-#### 测试覆盖
-- 新增11个测试用例覆盖所有新功能
-- 所有16个测试用例全部通过
-
-### 文件变更
-
-#### 新增文件
-- `src/main/java/com/ldzsai/kelp/expression/UnaryOperation.java` - 一元运算符表达式
-- `src/main/java/com/ldzsai/kelp/expression/TernaryOperation.java` - 三元运算符表达式
-- `plans/optimization_plan.md` - 优化计划文档
-- `CHANGELOG.md` - 更新日志
-
-#### 修改文件
-- `src/main/java/com/ldzsai/kelp/Operator.java` - 扩展运算符枚举
-- `src/main/java/com/ldzsai/kelp/token/TokenType.java` - 添加新token类型
-- `src/main/java/com/ldzsai/kelp/Lexer.java` - 扩展词法分析器
-- `src/main/java/com/ldzsai/kelp/Parser.java` - 重构语法分析器
-- `src/main/java/com/ldzsai/kelp/expression/BinaryOperation.java` - 扩展二元运算
-- `src/test/java/com/ldzsai/kelp/ExpressionEngineTest.java` - 添加新测试用例
-- `README.md` - 更新功能说明
 
 ---
 
@@ -97,12 +125,3 @@
 - 数组和集合元素访问
 - 表达式缓存优化
 - 执行耗时统计
-
----
-
-## 升级说明
-
-从0.0.1升级到0.0.2：
-- 完全向后兼容
-- 无需修改现有代码
-- 自动获得新运算符支持
