@@ -9,7 +9,9 @@ import com.ldzsai.kelp.token.Token;
 import com.ldzsai.kelp.token.TokenType;
 
 /**
- * 词法分析器
+ * 词法分析器（标记器）。
+ * 从输入字符串中提取 ${...} 表达式块，然后将内部表达式
+ * 分解为标记流。
  */
 public class Lexer {
     private final String input;
@@ -21,35 +23,33 @@ public class Lexer {
     }
 
     /**
-     * 分词
-     * 
-     * @return 分词列表
+     * 将输入字符串分解为标记列表。
+     *
+     * @return 标记列表
+     * @throws KelpException 词法错误时抛出异常
      */
-    public List<Token> tokenizer() throws KelpException {
+    public List<Token> tokenize() throws KelpException {
         try {
             List<Token> tokens = new ArrayList<>();
 
-            // 抽取表达式片段，除此之外的内容都按照字符串处理,抽取部分按照解析逻辑进行，保持先后顺序
-            List<Integer> chuckPos = extractExpChuckPos(input);
+            // 提取表达式块位置
+            List<Integer> chunkPos = extractExpressionPositions(input);
 
-            // 若无切片说明内部无合法表达式，按照字符串原样返回
-            if (chuckPos.isEmpty()) {
+            if (chunkPos.isEmpty()) {
+                // 无表达式——将整个输入视为字面字符串
                 tokens.add(new Token(TokenType.STRING, input));
             } else {
-                // 切片分段处理
-                for (int start : chuckPos) {
-                    // 当前位置i作为起始位置
+                for (int start : chunkPos) {
                     int startPos = position;
-                    // 第一个切片的开始位置作为第一段字符串的结束位置
                     int endPos = start;
 
-                    // 添加字符串
+                    // 添加表达式前的字面字符串
                     String val = input.substring(startPos, endPos);
                     if (!val.isEmpty()) {
                         tokens.add(new Token(TokenType.STRING, val));
                     }
 
-                    // 添加表达式，跳过${
+                    // 对表达式内容进行词法分析（跳过 ${)
                     position = start + 2;
                     Token token;
                     do {
@@ -58,13 +58,13 @@ public class Lexer {
                     } while (token.getType() != TokenType.EOF && position < input.length()
                             && input.charAt(position) != '}');
 
-                    // 跳过}字符
+                    // 跳过闭合的 }
                     if (position < input.length() && input.charAt(position) == '}') {
                         position++;
                     }
                 }
 
-                // 处理最后一个表达式之后的字符串
+                // 添加末尾的字面字符串
                 if (position < input.length()) {
                     String val = input.substring(position);
                     if (!val.isEmpty()) {
@@ -73,22 +73,17 @@ public class Lexer {
                 }
             }
 
-            // 添加结束标记
             tokens.add(new Token(TokenType.EOF, null));
-
             return tokens;
+        } catch (KelpException e) {
+            throw e;
         } catch (Exception e) {
-            if (e instanceof KelpException) {
-                throw e;
-            }
             throw new KelpException("Error tokenizing input: " + e.getMessage(), e);
         }
     }
 
     /**
-     * 获取下一个分词
-     * 
-     * @return 分词
+     * 从当前位置获取下一个标记。
      */
     private Token nextToken() throws KelpException {
         skipWhitespace();
@@ -98,23 +93,24 @@ public class Lexer {
 
         char ch = input.charAt(position);
 
-        // 检查是否为多字符运算符
-        if (position + 1 < input.length()) {
-            String twoChars = input.substring(position, position + 2);
-            TokenType type = matchTwoCharOperator(twoChars);
-            if (type != null) {
-                position += 2;
-                return new Token(type, twoChars);
-            }
-        }
-
-        // 检查三字符运算符
+        // 优先匹配三字符运算符，再匹配双字符运算符
+        // 确保 >>> 在 >> 之前被匹配
         if (position + 2 < input.length()) {
             String threeChars = input.substring(position, position + 3);
             TokenType type = matchThreeCharOperator(threeChars);
             if (type != null) {
                 position += 3;
                 return new Token(type, threeChars);
+            }
+        }
+
+        // 匹配双字符运算符
+        if (position + 1 < input.length()) {
+            String twoChars = input.substring(position, position + 2);
+            TokenType type = matchTwoCharOperator(twoChars);
+            if (type != null) {
+                position += 2;
+                return new Token(type, twoChars);
             }
         }
 
@@ -193,53 +189,29 @@ public class Lexer {
         }
     }
 
-    /**
-     * 匹配双字符运算符
-     */
     private TokenType matchTwoCharOperator(String str) {
         switch (str) {
-            case "==":
-                return TokenType.EQUALS;
-            case "!=":
-                return TokenType.NOT_EQUALS;
-            case ">=":
-                return TokenType.GREATER_OR_EQUAL;
-            case "<=":
-                return TokenType.LESS_OR_EQUAL;
-            case "&&":
-                return TokenType.LOGICAL_AND;
-            case "||":
-                return TokenType.LOGICAL_OR;
-            case "<<":
-                return TokenType.LEFT_SHIFT;
-            case ">>":
-                return TokenType.RIGHT_SHIFT;
-            case "**":
-                return TokenType.POWER;
-            case "//":
-                return TokenType.INTEGER_DIVIDE;
-            default:
-                return null;
+            case "==": return TokenType.EQUALS;
+            case "!=": return TokenType.NOT_EQUALS;
+            case ">=": return TokenType.GREATER_OR_EQUAL;
+            case "<=": return TokenType.LESS_OR_EQUAL;
+            case "&&": return TokenType.LOGICAL_AND;
+            case "||": return TokenType.LOGICAL_OR;
+            case "<<": return TokenType.LEFT_SHIFT;
+            case ">>": return TokenType.RIGHT_SHIFT;
+            case "**": return TokenType.POWER;
+            case "//": return TokenType.INTEGER_DIVIDE;
+            default: return null;
         }
     }
 
-    /**
-     * 匹配三字符运算符
-     */
     private TokenType matchThreeCharOperator(String str) {
         switch (str) {
-            case ">>>":
-                return TokenType.UNSIGNED_RIGHT_SHIFT;
-            default:
-                return null;
+            case ">>>": return TokenType.UNSIGNED_RIGHT_SHIFT;
+            default: return null;
         }
     }
 
-    /**
-     * 解析数字
-     * 
-     * @return 数字
-     */
     private Token parseNumber() throws KelpException {
         int startPos = position;
         boolean hasDot = false;
@@ -264,19 +236,13 @@ public class Lexer {
         }
     }
 
-    /**
-     * 解析双\单引号字符串
-     * 
-     * @return 双\单引号字符串
-     */
     private Token parseQuotedString() throws KelpException {
         char quoteChar = input.charAt(position);
         int startPos = position;
-        position++; // Skip the opening quote
+        position++; // 跳过起始引号
         while (position < input.length() && input.charAt(position) != quoteChar) {
-            // 处理转义字符
             if (input.charAt(position) == '\\' && position + 1 < input.length()) {
-                position += 2; // Skip escape character and escaped character
+                position += 2;
             } else {
                 position++;
             }
@@ -284,10 +250,10 @@ public class Lexer {
         if (position >= input.length()) {
             throw new KelpException("Unterminated quoted string starting at position " + startPos);
         }
-        position++; // Skip the closing quote
+        position++; // 跳过结束引号
         String value = input.substring(startPos + 1, position - 1);
 
-        // 处理转义字符
+        // 处理转义序列
         value = value.replace("\\\"", "\"");
         value = value.replace("\\'", "'");
         value = value.replace("\\n", "\n");
@@ -297,11 +263,6 @@ public class Lexer {
         return new Token(TokenType.QUOTE, value);
     }
 
-    /**
-     * 解析标识符
-     * 
-     * @return 标识符
-     */
     private Token parseIdentifier() {
         int startPos = position;
         while (position < input.length()
@@ -312,30 +273,28 @@ public class Lexer {
         return new Token(TokenType.IDENTIFIER, identifier);
     }
 
-    /**
-     * 抽取${*}中的内容，获得每个表达式切片的起始位置
-     * 
-     * @param input 含有表达式的字符串
-     * @return 表达式切片的起始位置
-     */
-    private List<Integer> extractExpChuckPos(String input) {
+    private List<Integer> extractExpressionPositions(String input) {
         List<Integer> exps = new ArrayList<>();
         Pattern pattern = Pattern.compile("\\$\\{([^}]*)\\}");
         Matcher matcher = pattern.matcher(input);
 
         while (matcher.find()) {
-            int start = matcher.start();
-            exps.add(start);
+            exps.add(matcher.start());
         }
         return exps;
     }
 
-    /**
-     * 跳过空白字符
-     */
     private void skipWhitespace() {
         while (position < input.length() && Character.isWhitespace(input.charAt(position))) {
             position++;
         }
+    }
+
+    /**
+     * @deprecated 请使用 {@link #tokenize()} 替代。
+     */
+    @Deprecated
+    public List<Token> tokenizer() throws KelpException {
+        return tokenize();
     }
 }

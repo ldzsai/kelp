@@ -16,6 +16,9 @@ kelp是一个轻量级、高性能的Java表达式解析和执行引擎，支持
  - ✅ 强类型检查（变量、数组索引等）
  - 🛡️ 边界检查（数组越界、Map键不存在等）
  - 🔄 支持递归表达式解析
+ - 🔧 流水线架构，支持中间件扩展
+ - 📈 内置指标收集和日志记录
+ - 🔒 线程安全，支持并发调用
 
 ## 快速开始
 
@@ -24,7 +27,7 @@ kelp是一个轻量级、高性能的Java表达式解析和执行引擎，支持
 <dependency>
     <groupId>com.ldzsai</groupId>
     <artifactId>kelp</artifactId>
-    <version>0.0.1</version>
+    <version>0.0.3</version>
 </dependency>
 ```
 
@@ -32,133 +35,133 @@ kelp是一个轻量级、高性能的Java表达式解析和执行引擎，支持
 
 | 类名                 | 功能描述                                                                 |
 |----------------------|--------------------------------------------------------------------------|
-| [Environment](./src/main/java/com/ldzsai/kelp/expression/Environment.java#L5-L22)        | 执行环境，用于存储变量和上下文数据                                       |
-| [ExpressionEngine](./src/main/java/com/ldzsai/kelp/ExpressionEngine.java#L10-L78)   | 表达式引擎入口，提供[execute()](./src/main/java/com/ldzsai/kelp/ExpressionEngine.java#L37-L59)方法执行表达式                           |
-| [Lexer](./src/main/java/com/ldzsai/kelp/Lexer.java#L13-L220)              | 词法分析器，将表达式字符串分解为Token序列                               |
-| [Parser](./src/main/java/com/ldzsai/kelp/Parser.java#L20-L248)             | 语法分析器，将Token序列转换为抽象语法树(AST)                            |
-| [Operator](./src/main/java/com/ldzsai/kelp/Operator.java#L4-L30)           | 运算符枚举，支持`+`, `-`, `*`, `/`, `%`, `**`, `//`等多种运算    |
+| [KelpEngine](./src/main/java/com/ldzsai/kelp/KelpEngine.java)              | 表达式引擎入口，通过构建器模式创建，提供 `execute()` 和 `evaluate()` 方法 |
+| [Environment](./src/main/java/com/ldzsai/kelp/expression/Environment.java)  | 执行环境，用于存储变量和上下文数据                                       |
+| [Lexer](./src/main/java/com/ldzsai/kelp/Lexer.java)                        | 词法分析器，将表达式字符串分解为Token序列                               |
+| [Parser](./src/main/java/com/ldzsai/kelp/Parser.java)                      | 语法分析器，将Token序列转换为抽象语法树(AST)                            |
+| [Operator](./src/main/java/com/ldzsai/kelp/Operator.java)                  | 运算符枚举，支持 `+`, `-`, `*`, `/`, `%`, `**`, `//` 等多种运算        |
 
 ### 使用示例
 
 #### 基本数学运算
 ```java
+KelpEngine engine = KelpEngine.create();
 Environment env = new Environment();
-ExpressionEngine engine = new ExpressionEngine(env);
-Object result = engine.execute("${1 + 2 * 3}");
-System.out.println(result); // 输出: 7
+String result = engine.execute("${1 + 2 * 3}", env);
+System.out.println(result); // 输出: 4.0
 ```
 
 #### 高级数学运算
 ```java
+KelpEngine engine = KelpEngine.create();
 Environment env = new Environment();
-ExpressionEngine engine = new ExpressionEngine(env);
 
 // 幂运算
-Object result = engine.execute("${2 ** 3}");
+String result = engine.execute("${2 ** 3}", env);
 System.out.println(result); // 输出: 8.0
 
 // 整除
-result = engine.execute("${10 // 3}");
+result = engine.execute("${10 // 3}", env);
 System.out.println(result); // 输出: 3.0
 
 // 取模
-result = engine.execute("${10 % 3}");
+result = engine.execute("${10 % 3}", env);
 System.out.println(result); // 输出: 1.0
 ```
 
 #### 比较运算
 ```java
+KelpEngine engine = KelpEngine.create();
 Environment env = new Environment();
 env.setVariable("a", 10);
 env.setVariable("b", 20);
-ExpressionEngine engine = new ExpressionEngine(env);
 
-System.out.println(engine.execute("${a < b}"));   // 输出: true
-System.out.println(engine.execute("${a > b}"));   // 输出: false
-System.out.println(engine.execute("${a == b}"));  // 输出: false
-System.out.println(engine.execute("${a != b}"));  // 输出: true
+System.out.println(engine.execute("${a < b}", env));   // 输出: true
+System.out.println(engine.execute("${a > b}", env));   // 输出: false
+System.out.println(engine.execute("${a == b}", env));  // 输出: false
+System.out.println(engine.execute("${a != b}", env));  // 输出: true
 ```
 
 #### 逻辑运算符
 ```java
+KelpEngine engine = KelpEngine.create();
 Environment env = new Environment();
 env.setVariable("a", 1);
 env.setVariable("b", 0);
-ExpressionEngine engine = new ExpressionEngine(env);
 
-System.out.println(engine.execute("${a && a}"));  // 输出: true
-System.out.println(engine.execute("${a && b}"));  // 输出: false
-System.out.println(engine.execute("${a || b}"));  // 输出: true
-System.out.println(engine.execute("${!b}"));      // 输出: true
+System.out.println(engine.execute("${a && a}", env));  // 输出: true
+System.out.println(engine.execute("${a && b}", env));  // 输出: false
+System.out.println(engine.execute("${a || b}", env));  // 输出: true
+System.out.println(engine.execute("${!b}", env));      // 输出: true
 ```
 
 #### 位运算符
 ```java
+KelpEngine engine = KelpEngine.create();
 Environment env = new Environment();
 env.setVariable("a", 5);  // 0101
 env.setVariable("b", 3);  // 0011
-ExpressionEngine engine = new ExpressionEngine(env);
 
-System.out.println(engine.execute("${a & b}"));  // 输出: 1 (0001)
-System.out.println(engine.execute("${a | b}"));  // 输出: 7 (0111)
-System.out.println(engine.execute("${a ^ b}"));  // 输出: 6 (0110)
-System.out.println(engine.execute("${a << b}")); // 输出: 40 (101000)
+System.out.println(engine.execute("${a & b}", env));  // 输出: 1 (0001)
+System.out.println(engine.execute("${a | b}", env));  // 输出: 7 (0111)
+System.out.println(engine.execute("${a ^ b}", env));  // 输出: 6 (0110)
+System.out.println(engine.execute("${a << b}", env)); // 输出: 40 (101000)
 ```
 
 #### 三元运算符
 ```java
+KelpEngine engine = KelpEngine.create();
 Environment env = new Environment();
 env.setVariable("a", 10);
 env.setVariable("b", 20);
-ExpressionEngine engine = new ExpressionEngine(env);
 
-System.out.println(engine.execute("${a < b ? 'yes' : 'no'}")); // 输出: yes
-System.out.println(engine.execute("${a > b ? 'yes' : 'no'}")); // 输出: no
+System.out.println(engine.execute("${a < b ? 'yes' : 'no'}", env)); // 输出: yes
+System.out.println(engine.execute("${a > b ? 'yes' : 'no'}", env)); // 输出: no
 ```
 
 #### 负数支持
 ```java
+KelpEngine engine = KelpEngine.create();
 Environment env = new Environment();
 env.setVariable("a", 10);
-ExpressionEngine engine = new ExpressionEngine(env);
 
-System.out.println(engine.execute("${-a}"));    // 输出: -10.0
-System.out.println(engine.execute("${--a}"));   // 输出: 10.0
+System.out.println(engine.execute("${-a}", env));    // 输出: -10.0
+System.out.println(engine.execute("${--a}", env));   // 输出: 10.0
 ```
 
 #### 变量访问和方法调用
 ```java
+KelpEngine engine = KelpEngine.create();
 Environment env = new Environment();
-ExpressionEngine engine = new ExpressionEngine(env);
 
 // 设置变量
 env.setVariable("name", "Kelp");
 env.setVariable("price", 99.9);
 
 // 变量访问
-Object name = engine.execute("${name}"); 
+String name = engine.execute("${name}", env);
 System.out.println(name); // 输出: Kelp
 
 // 方法调用
 env.setVariable("Math", Math.class);
-Object result = engine.execute("${Math.max(10, 20)}");
+String result = engine.execute("${Math.max(10, 20)}", env);
 System.out.println(result); // 输出: 20
 
 // 链式方法调用
 env.setVariable("str", "hello");
-result = engine.execute("${str.toUpperCase().substring(0,3)}");
+result = engine.execute("${str.toUpperCase().substring(0,3)}", env);
 System.out.println(result); // 输出: HEL
 ```
 
 #### 集合访问
 ```java
+KelpEngine engine = KelpEngine.create();
 Environment env = new Environment();
-ExpressionEngine engine = new ExpressionEngine(env);
 
 // List访问
 List<String> fruits = Arrays.asList("Apple", "Banana", "Cherry");
 env.setVariable("fruits", fruits);
-Object result = engine.execute("${fruits[1]}"); 
+String result = engine.execute("${fruits[1]}", env);
 System.out.println(result); // 输出: Banana
 
 // Map访问
@@ -166,7 +169,7 @@ Map<String, Integer> scores = new HashMap<>();
 scores.put("Math", 90);
 scores.put("English", 85);
 env.setVariable("scores", scores);
-result = engine.execute("${scores['Math']}"); 
+result = engine.execute("${scores['Math']}", env);
 System.out.println(result); // 输出: 90
 
 // 链式访问
@@ -175,7 +178,7 @@ Map<String, Object> user = Map.of(
     "address", Map.of("city", "Hangzhou")
 );
 env.setVariable("user", user);
-result = engine.execute("${user.address.city}");
+result = engine.execute("${user.address.city}", env);
 System.out.println(result); // 输出: Hangzhou
 
 // 嵌套集合访问
@@ -184,31 +187,38 @@ List<Map<String, Object>> users = List.of(
     Map.of("id", 2, "name", "Bob")
 );
 env.setVariable("users", users);
-result = engine.execute("${users[1].name}");
+result = engine.execute("${users[1].name}", env);
 System.out.println(result); // 输出: Bob
 ```
 
-#### 性能监控
+#### 获取原始求值结果
 ```java
-engine.execute("${complexExpression}");
-long elapsed = engine.getLastExecutionTime();
-System.out.println("执行耗时: " + elapsed + "ms");
+KelpEngine engine = KelpEngine.create();
+Environment env = new Environment();
+
+// evaluate() 返回原始对象，不经过字符串转换
+Object raw = engine.evaluate("${1 + 2}", env);
+System.out.println(raw);          // 输出: 3.0 (Double 类型)
+System.out.println(raw instanceof Number); // 输出: true
 ```
 
 #### 表达式混合使用
 ```java
+KelpEngine engine = KelpEngine.create();
+Environment env = new Environment();
+
 // 数学运算与变量混合
 env.setVariable("a", 10);
 env.setVariable("b", 20);
-result = engine.execute("${a * b + 5}"); 
-System.out.println(result); // 输出: 205
+String result = engine.execute("${a * b + 5}", env);
+System.out.println(result); // 输出: 205.0
 
 // 方法调用与集合访问混合
-result = engine.execute("${users.size() * 2}");
+result = engine.execute("${users.size() * 2}", env);
 System.out.println(result); // 输出: 4 (假设users有2个元素)
 
 // 复杂表达式
-result = engine.execute("${2 ** 3 + 10 / 2 - 5}");  // 8 + 5 - 5 = 8
+result = engine.execute("${2 ** 3 + 10 / 2 - 5}", env);  // 8 + 5 - 5 = 8
 System.out.println(result); // 输出: 8.0
 ```
 
@@ -260,6 +270,16 @@ kelp表达式引擎支持完整的运算符优先级（从高到低）：
 
 ## 高级用法
 
+### 构建器模式
+```java
+KelpEngine engine = KelpEngine.builder()
+    .maxCacheSize(500)
+    .maxExpressionLength(10000)
+    .enableLogging(true)
+    .enableMetrics(true)
+    .build();
+```
+
 ### 自定义函数
 ```java
 public class StringUtils {
@@ -268,23 +288,24 @@ public class StringUtils {
     }
 }
 
-// 使用自定义函数
+KelpEngine engine = KelpEngine.create();
+Environment env = new Environment();
 env.setVariable("StringUtils", StringUtils.class);
-result = engine.execute("${StringUtils.reverse('hello')}");
+String result = engine.execute("${StringUtils.reverse('hello')}", env);
 System.out.println(result); // 输出: olleh
 ```
 
 ### 性能优化建议
-1. **复用Environment对象**：多次执行时复用Environment对象减少创建开销
-2. **缓存常用表达式**：引擎内置AST缓存，重复执行相同表达式时性能最佳
+1. **复用 Environment 对象**：多次执行时复用 Environment 对象减少创建开销
+2. **缓存常用表达式**：引擎内置 AST 缓存，重复执行相同表达式时性能最佳
 3. **避免复杂链式调用**：过深的链式调用会增加解析开销
-4. **批量设置变量**：使用`env.setVariable()`批量设置变量减少调用次数
+4. **批量设置变量**：使用 `env.setVariable()` 批量设置变量减少调用次数
 
 ## 异常处理
-执行过程中可能抛出[KelpException](./src/main/java/com/ldzsai/kelp/KelpException.java#L2-L8)，包含错误信息：
+执行过程中可能抛出 [KelpException](./src/main/java/com/ldzsai/kelp/exception/KelpException.java)，包含错误信息：
 ```java
 try {
-    engine.execute("${invalid/expression}");
+    engine.execute("${invalid/expression}", env);
 } catch (KelpException e) {
     System.out.println("表达式错误: " + e.getMessage());
 } catch (Exception e) {
@@ -293,26 +314,10 @@ try {
 ```
 
 ## 实现原理
-1. **词法分析**：[Lexer](./src/main/java/com/ldzsai/kelp/Lexer.java#L13-L220)将输入字符串分解为Token序列
-2. **语法解析**：[Parser](./src/main/java/com/ldzsai/kelp/Parser.java#L35-L248)构建抽象语法树(AST)
-3. **表达式求值**：递归遍历AST执行表达式计算
-4. **缓存优化**：对重复执行的表达式缓存AST结构
-
-## 性能对比
-| 操作                 | 首次执行(ms) | 缓存后执行(ms) |
-|----------------------|--------------|----------------|
-| 简单数学运算         | 1.2          | 0.3            |
-| 变量访问             | 0.8          | 0.2            |
-| 嵌套对象访问(3层)    | 2.5          | 0.5            |
-| 集合访问(10元素)     | 1.8          | 0.4            |
-
-> 测试环境：JDK 11+, Intel i7-11800H, 32GB RAM
-
-## 最佳实践
-1. 对于模板渲染场景，建议预编译常用表达式
-2. 在规则引擎中，将复杂规则拆分为多个简单表达式
-3. 对性能敏感场景，避免在循环中创建新Environment对象
-4. 使用`getLastExecutionTime()`监控性能热点
+1. **词法分析**：[Lexer](./src/main/java/com/ldzsai/kelp/Lexer.java) 将输入字符串分解为 Token 序列
+2. **语法解析**：[Parser](./src/main/java/com/ldzsai/kelp/Parser.java) 构建抽象语法树(AST)
+3. **流水线处理**：[ExpressionPipeline](./src/main/java/com/ldzsai/kelp/pipeline/ExpressionPipeline.java) 协调词法分析、语法分析、求值流程
+4. **中间件扩展**：支持前置/后置中间件链，可实现输入校验、日志记录、指标收集等功能
 
 ## Star History
 [![Star History Chart](https://api.star-history.com/svg?repos=ldzsai/kelp&type=Date)](https://www.star-history.com/#ldzsai/kelp&Date)

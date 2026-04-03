@@ -1,11 +1,12 @@
 package com.ldzsai.kelp;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
-import java.util.function.Function;
 
 /**
- * 运算符枚举
- * 支持算术运算符、比较运算符、逻辑运算符和位运算符
+ * 运算符枚举，包含位运算的正确实现。
+ * 每个运算符携带其符号、类型和求值 lambda。
  */
 public enum Operator {
     // 算术运算符
@@ -18,8 +19,8 @@ public enum Operator {
     INTEGER_DIVIDE("//", OperatorType.ARITHMETIC, (a, b) -> Double.valueOf((int) (a / b))),
 
     // 比较运算符
-    EQUALS("==", OperatorType.COMPARISON, (a, b) -> a.equals(b)),
-    NOT_EQUALS("!=", OperatorType.COMPARISON, (a, b) -> !a.equals(b)),
+    EQUALS("==", OperatorType.COMPARISON, (a, b) -> a.doubleValue() == b.doubleValue()),
+    NOT_EQUALS("!=", OperatorType.COMPARISON, (a, b) -> a.doubleValue() != b.doubleValue()),
     GREATER_THAN(">", OperatorType.COMPARISON, (a, b) -> a > b),
     LESS_THAN("<", OperatorType.COMPARISON, (a, b) -> a < b),
     GREATER_OR_EQUAL(">=", OperatorType.COMPARISON, (a, b) -> a >= b),
@@ -29,20 +30,27 @@ public enum Operator {
     LOGICAL_AND("&&", OperatorType.LOGICAL, (a, b) -> (a != 0) && (b != 0)),
     LOGICAL_OR("||", OperatorType.LOGICAL, (a, b) -> (a != 0) || (b != 0)),
 
-    // 位运算符
-    BIT_AND("&", OperatorType.BITWISE, (a, b) -> a),
-    BIT_OR("|", OperatorType.BITWISE, (a, b) -> a),
-    BIT_XOR("^", OperatorType.BITWISE, (a, b) -> a),
-    LEFT_SHIFT("<<", OperatorType.BITWISE, (a, b) -> a),
-    RIGHT_SHIFT(">>", OperatorType.BITWISE, (a, b) -> a),
-    UNSIGNED_RIGHT_SHIFT(">>>", OperatorType.BITWISE, (a, b) -> a);
+    // 位运算符——正确的实现
+    BIT_AND("&", OperatorType.BITWISE, (a, b) -> (double) (a.intValue() & b.intValue())),
+    BIT_OR("|", OperatorType.BITWISE, (a, b) -> (double) (a.intValue() | b.intValue())),
+    BIT_XOR("^", OperatorType.BITWISE, (a, b) -> (double) (a.intValue() ^ b.intValue())),
+    LEFT_SHIFT("<<", OperatorType.BITWISE, (a, b) -> (double) (a.intValue() << b.intValue())),
+    RIGHT_SHIFT(">>", OperatorType.BITWISE, (a, b) -> (double) (a.intValue() >> b.intValue())),
+    UNSIGNED_RIGHT_SHIFT(">>>", OperatorType.BITWISE, (a, b) -> (double) (a.intValue() >>> b.intValue()));
 
-    // 运算符类型
     public enum OperatorType {
-        ARITHMETIC, // 算术运算符
-        COMPARISON, // 比较运算符
-        LOGICAL, // 逻辑运算符
-        BITWISE // 位运算符
+        ARITHMETIC,
+        COMPARISON,
+        LOGICAL,
+        BITWISE
+    }
+
+    private static final Map<String, Operator> SYMBOL_MAP = new ConcurrentHashMap<>();
+
+    static {
+        for (Operator op : values()) {
+            SYMBOL_MAP.put(op.symbol, op);
+        }
     }
 
     private final String symbol;
@@ -55,45 +63,20 @@ public enum Operator {
         this.function = function;
     }
 
-    /**
-     * 应用运算符
-     * 
-     * @param a 左边操作数
-     * @param b 右边操作数
-     * @return 运算结果
-     */
     public Object apply(double a, double b) {
         return function.apply(a, b);
     }
 
-    /**
-     * 应用一元负运算符
-     * 
-     * @param a 操作数
-     * @return 负值
-     */
-    public Object applyNegation(double a) {
+    public static Object applyNegation(double a) {
         return -a;
     }
 
-    /**
-     * 应用一元逻辑非运算符
-     * 
-     * @param a 操作数
-     * @return 逻辑非结果
-     */
-    public Object applyLogicalNot(double a) {
+    public static Object applyLogicalNot(double a) {
         return a == 0;
     }
 
-    /**
-     * 应用按位取反运算符
-     * 
-     * @param a 操作数
-     * @return 按位取反结果
-     */
-    public Object applyBitwiseNot(double a) {
-        return ~(int) a;
+    public static Object applyBitwiseNot(double a) {
+        return (double) (~(int) a);
     }
 
     public String getSymbol() {
@@ -121,84 +104,44 @@ public enum Operator {
     }
 
     /**
-     * 根据符号解析运算符
-     * 
+     * 将符号字符串解析为运算符。使用 O(1) 映射查找。
+     *
      * @param symbol 运算符符号
-     * @return 运算符
+     * @return 对应的运算符
+     * @throws IllegalArgumentException 未知运算符时抛出
      */
     public static Operator parse(String symbol) {
-        for (Operator op : values()) {
-            if (op.symbol.equals(symbol)) {
-                return op;
-            }
+        Operator op = SYMBOL_MAP.get(symbol);
+        if (op == null) {
+            throw new IllegalArgumentException("Unknown operator: " + symbol);
         }
-        throw new IllegalArgumentException("Unknown operator: " + symbol);
+        return op;
     }
 
     /**
-     * 检查是否为有效运算符符号
-     * 
-     * @param symbol 符号
-     * @return 是否有效
+     * 检查符号是否为已识别的运算符。
      */
     public static boolean isValidOperator(String symbol) {
-        for (Operator op : values()) {
-            if (op.symbol.equals(symbol)) {
-                return true;
-            }
-        }
-        return false;
+        return SYMBOL_MAP.containsKey(symbol);
     }
 
-    /**
-     * 获取运算符优先级（数值越小优先级越高）
-     * 
-     * @return 优先级
-     */
     public int getPrecedence() {
         switch (this) {
-            case POWER:
-                return 1;
-            case MULTIPLY:
-            case DIVIDE:
-            case MODULO:
-            case INTEGER_DIVIDE:
-                return 2;
-            case ADD:
-            case SUBTRACT:
-                return 3;
-            case LEFT_SHIFT:
-            case RIGHT_SHIFT:
-            case UNSIGNED_RIGHT_SHIFT:
-                return 4;
-            case GREATER_THAN:
-            case LESS_THAN:
-            case GREATER_OR_EQUAL:
-            case LESS_OR_EQUAL:
-                return 5;
-            case EQUALS:
-            case NOT_EQUALS:
-                return 6;
-            case BIT_AND:
-                return 7;
-            case BIT_XOR:
-                return 8;
-            case BIT_OR:
-                return 9;
-            case LOGICAL_AND:
-                return 10;
-            case LOGICAL_OR:
-                return 11;
-            default:
-                return 99;
+            case POWER: return 1;
+            case MULTIPLY: case DIVIDE: case MODULO: case INTEGER_DIVIDE: return 2;
+            case ADD: case SUBTRACT: return 3;
+            case LEFT_SHIFT: case RIGHT_SHIFT: case UNSIGNED_RIGHT_SHIFT: return 4;
+            case GREATER_THAN: case LESS_THAN: case GREATER_OR_EQUAL: case LESS_OR_EQUAL: return 5;
+            case EQUALS: case NOT_EQUALS: return 6;
+            case BIT_AND: return 7;
+            case BIT_XOR: return 8;
+            case BIT_OR: return 9;
+            case LOGICAL_AND: return 10;
+            case LOGICAL_OR: return 11;
+            default: return 99;
         }
     }
 
-    /**
-     * 检查是否左结合
-     * 
-     * @return 是否左结合
-     */
     public boolean isLeftAssociative() {
         return this != POWER;
     }

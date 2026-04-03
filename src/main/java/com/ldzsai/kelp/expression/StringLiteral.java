@@ -1,20 +1,31 @@
 package com.ldzsai.kelp.expression;
 
-public class StringLiteral extends Expression {
+import com.ldzsai.kelp.api.ExpressionVisitor;
 
-    private String value;
+/**
+ * 字符串字面量表达式。
+ */
+public class StringLiteral extends Expression {
+    private final String value;
 
     public StringLiteral(String value) {
         this.value = value;
     }
 
-    public String getValue() {
+    @Override
+    public Object evaluate(Environment env) {
         return value;
     }
 
     @Override
-    public Object evaluate(Environment env) throws Exception {
-        return value;
+    public <T> T accept(ExpressionVisitor<T> visitor) {
+        return visitor.visitStringLiteral(this);
     }
 
+    @Override
+    public String describe() {
+        return "'" + value + "'";
+    }
+
+    public String getValue() { return value; }
 }
